@@ -2,12 +2,24 @@
 
 import { useEffect, useState, useRef } from 'react';
 
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
 export default function Home() {
   const [isDark, setIsDark] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initialize theme from localStorage
   useEffect(() => {
@@ -108,6 +120,68 @@ export default function Home() {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  };
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  }, [inputText]);
+
+  const getAgentIntroduction = (): string => {
+    return `Hello! I'm your Resume AI Agent. I'm here to help you optimize your resume to perfectly match job descriptions.
+
+Here's what I can do for you:
+• Analyze your resume and identify areas for improvement
+• Match your skills and experience to specific job requirements
+• Suggest targeted improvements to make your resume stand out
+• Help you tailor your resume for different positions
+
+To get started, please upload your resume PDF and share a job description (either by pasting the text or providing a URL). I'll then analyze both and provide personalized recommendations to help you land that interview!
+
+What would you like to work on today?`;
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: inputText.trim(),
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInputText('');
+    setIsLoading(true);
+
+    // Simulate API call delay
+    setTimeout(() => {
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: getAgentIntroduction(),
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      setIsLoading(false);
+    }, 1000);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
   return (
@@ -334,25 +408,77 @@ export default function Home() {
               {/* Chat Messages Area */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="mx-auto max-w-3xl">
-                  {/* Welcome Message */}
-                  <div className="mb-6 text-center">
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 dark:from-indigo-500 dark:to-blue-500">
-                      <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
+                  {/* Welcome Message - Only show when no messages */}
+                  {messages.length === 0 && (
+                    <div className="mb-6 text-center">
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 dark:from-indigo-500 dark:to-blue-500">
+                        <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      </div>
+                      <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
+                        Welcome to Resume AI Agent
+                      </h2>
+                      <p className="text-slate-600 dark:text-slate-400">
+                        Upload your resume and share a job description to get started. 
+                        I'll help optimize your resume to match the position perfectly.
+                      </p>
                     </div>
-                    <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
-                      Welcome to Resume AI Agent
-                    </h2>
-                    <p className="text-slate-600 dark:text-slate-400">
-                      Upload your resume and share a job description to get started. 
-                      I'll help optimize your resume to match the position perfectly.
-                    </p>
-                  </div>
+                  )}
 
-                  {/* Placeholder for chat messages */}
+                  {/* Chat Messages */}
                   <div className="space-y-4">
-                    {/* This will be populated with chat messages */}
+                    {messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex gap-4 ${
+                          message.role === 'user' ? 'justify-end' : 'justify-start'
+                        }`}
+                      >
+                        {message.role === 'assistant' && (
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 dark:from-indigo-500 dark:to-blue-500">
+                            <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                          </div>
+                        )}
+                        <div
+                          className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                            message.role === 'user'
+                              ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                              : 'bg-slate-100 text-slate-900 dark:bg-slate-700 dark:text-slate-100'
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+                        </div>
+                        {message.role === 'user' && (
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700">
+                            <svg className="h-5 w-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {/* Loading indicator */}
+                    {isLoading && (
+                      <div className="flex gap-4 justify-start">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 dark:from-indigo-500 dark:to-blue-500">
+                          <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                        <div className="rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-700">
+                          <div className="flex gap-1">
+                            <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]"></div>
+                            <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]"></div>
+                            <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400"></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
                   </div>
                 </div>
               </div>
@@ -361,7 +487,7 @@ export default function Home() {
               <div className="border-t border-slate-200 bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-900/50">
                 <div className="mx-auto max-w-3xl">
                   <div className="flex items-end gap-3">
-                    {/* Text Input Placeholder */}
+                    {/* Text Input */}
                     <div className="flex-1">
                       <div className="rounded-lg border border-slate-300 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-700">
                         <div className="mb-2 flex items-center gap-2">
@@ -372,17 +498,38 @@ export default function Home() {
                             Paste job description or URL here
                           </span>
                         </div>
-                        <div className="h-20 text-sm text-slate-400 dark:text-slate-500">
-                          Type your message...
-                        </div>
+                        <textarea
+                          ref={textareaRef}
+                          value={inputText}
+                          onChange={(e) => setInputText(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+                          className="w-full resize-none border-0 bg-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-0 dark:text-slate-100 dark:placeholder-slate-500"
+                          rows={1}
+                          style={{ minHeight: '24px', maxHeight: '200px' }}
+                        />
                       </div>
                     </div>
                     
-                    {/* Send Button Placeholder */}
-                    <button className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-md transition-all hover:shadow-lg dark:from-indigo-500 dark:to-blue-500">
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
+                    {/* Send Button */}
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!inputText.trim() || isLoading}
+                      className={`flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-md transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 dark:from-indigo-500 dark:to-blue-500 ${
+                        inputText.trim() && !isLoading ? 'hover:scale-105' : ''
+                      }`}
+                      aria-label="Send message"
+                    >
+                      {isLoading ? (
+                        <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      ) : (
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                      )}
                     </button>
                   </div>
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
