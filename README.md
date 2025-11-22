@@ -1,4 +1,4 @@
-## Resume Architect Agent
+## Resume Agent
 
 An autonomous **human-in-the-loop AI agent** that takes your **generic PDF resume** and a **specific Job Description URL**, then iteratively rewrites and optimizes your resume until it tightly matches the job requirements and passes your personal approval.
 
@@ -104,15 +104,15 @@ tbc.
 1. **Clone the repo**
 
 ```bash
-git clone https://github.com/Valedicode/resume-architect-agent.git
-cd resume-architect-agent
+git clone https://github.com/Valedicode/resume-agent.git
+cd resume-agent
 ```
 
 2. **Create and activate conda environment**
 
 ```bash
 conda env create -f environment.yml
-conda activate resume-architect-agent
+conda activate resume-agent
 ```
 
 3. **Install additional dependencies** (as you add them to your project)
